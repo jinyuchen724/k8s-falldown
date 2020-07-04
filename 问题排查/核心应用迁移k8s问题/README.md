@@ -5,9 +5,7 @@
 
 ### 请求rt，正常kvm上都是几十ms：
 
-技术保障部new > 3.2 njord迁移k8s问题 > image2020-7-3 16:10:9.png
-
-
+![image](https://github.com/jinyuchen724/k8s-falldown/raw/master/%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5/%E6%A0%B8%E5%BF%83%E5%BA%94%E7%94%A8%E8%BF%81%E7%A7%BBk8s%E9%97%AE%E9%A2%98/1.png)
 
 ### gc日志：
 
@@ -49,9 +47,7 @@ CommandLine flags: -XX:+CMSClassUnloadingEnabled -XX:CMSInitiatingOccupancyFract
 
 ### 现象：在几次ygc之后，young区的gc时间变长，也gc不了young区的空间，然后old区变满就一直fullgc
 
-技术保障部new > 3.2 njord迁移k8s问题 > image2020-7-3 16:11:49.png
-
-
+![image](https://github.com/jinyuchen724/k8s-falldown/raw/master/%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5/%E6%A0%B8%E5%BF%83%E5%BA%94%E7%94%A8%E8%BF%81%E7%A7%BBk8s%E9%97%AE%E9%A2%98/2.png)
 
 ### jvm参数：
 
@@ -72,14 +68,12 @@ jmap -dump:format=b,file=njorddump pid
 
 通过jprofiler打开dump：es创建的netty线程是64个，每个大小是16M，16*64=1G，这个就是一直fullgc的罪魁祸首
 
-技术保障部new > 3.2 njord迁移k8s问题 > image2020-7-3 16:19:22.png
-
+![image](https://github.com/jinyuchen724/k8s-falldown/raw/master/%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5/%E6%A0%B8%E5%BF%83%E5%BA%94%E7%94%A8%E8%BF%81%E7%A7%BBk8s%E9%97%AE%E9%A2%98/3.png)
 
 
 在dump kvm中的内存，进行分析，es创建的netty线程是16个，每个大小是16M，16*16=256M
 
-技术保障部new > 3.2 njord迁移k8s问题 > image2020-7-3 16:22:57.png
-
+![image](https://github.com/jinyuchen724/k8s-falldown/raw/master/%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5/%E6%A0%B8%E5%BF%83%E5%BA%94%E7%94%A8%E8%BF%81%E7%A7%BBk8s%E9%97%AE%E9%A2%98/4.png)
 
 
 ### 对比docker和kvm的dump，说明这个大小是正常的，不正常的是数量，同样是分配8c16g的kvm和docker，为啥docker是64个，而kvm是16？
@@ -92,10 +86,9 @@ jmap -dump:format=b,file=njorddump pid
 
 netty默认创建线程的方法：Runtime.getRuntime().availableProcessors()这个方法默认拿到的是物理机的核数。
 
-技术保障部new > 3.2 njord迁移k8s问题 > image2020-7-3 16:38:32.png
+![image](https://github.com/jinyuchen724/k8s-falldown/raw/master/%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5/%E6%A0%B8%E5%BF%83%E5%BA%94%E7%94%A8%E8%BF%81%E7%A7%BBk8s%E9%97%AE%E9%A2%98/5.png)
 
 https://www.jianshu.com/p/512e983eedf5
-
 
 
 至此问题已经比较明朗了，就是因为es调用的netty库所设置的线程过大，导致内存被占满。
@@ -109,11 +102,9 @@ https://www.jianshu.com/p/512e983eedf5
 - 2.彻底解决的话还是容器可以返回实际的cpu个数
 
 
-工具：
+## 工具：
 
-dump分析工具:
-破解密码:xclient.info
-
+- dump分析工具: JProfiler
 
 
 
